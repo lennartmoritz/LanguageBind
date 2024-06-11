@@ -1,3 +1,6 @@
+import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+
 import torch
 from languagebind import LanguageBind, to_device, transform_dict, LanguageBindImageTokenizer
 
@@ -12,11 +15,11 @@ if __name__ == '__main__':
         'depth': 'LanguageBind_Depth',
     }
 
-    model = LanguageBind(clip_type=clip_type, cache_dir='./cache_dir')
+    model = LanguageBind(clip_type=clip_type, cache_dir='/raid/1moritz/models/languagebind/downloaded_weights')
     model = model.to(device)
     model.eval()
     pretrained_ckpt = f'LanguageBind/LanguageBind_Image'
-    tokenizer = LanguageBindImageTokenizer.from_pretrained(pretrained_ckpt, cache_dir='./cache_dir/tokenizer_cache_dir')
+    tokenizer = LanguageBindImageTokenizer.from_pretrained(pretrained_ckpt, cache_dir='/raid/1moritz/models/languagebind/downloaded_weights/tokenizer_cache_dir')
     modality_transform = {c: transform_dict[c](model.modality_config[c]) for c in clip_type.keys()}
 
     image = ['assets/image/0.jpg', 'assets/image/1.jpg']

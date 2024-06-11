@@ -104,7 +104,7 @@ def main(args):
         torch.backends.cudnn.deterministic = False
 
     # fully initialize distributed device environment
-    device = init_distributed_device(args)
+    device = init_distributed_device(args) # returns torch.device('cuda:0')
 
     # get the name of the experiments
     if args.name is None:
