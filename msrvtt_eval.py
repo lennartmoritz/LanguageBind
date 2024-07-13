@@ -21,6 +21,7 @@ def get_args_msrvtt():
         "video_folder": '/raid/1moritz/datasets/MSRVTT/original_data/MSRVTT/videos/all',
         "audio_folder": '/raid/1moritz/datasets/MSRVTT/original_data/MSRVTT/clip_audios',
         "asr_folder": '/raid/1moritz/datasets/MSRVTT/original_data/MSRVTT/clip_asr',
+        "summary_folder": '/raid/1moritz/datasets/MSRVTT/original_data/MSRVTT/clip_summary_asr',
         "batch_size_val": 8,
         "num_thread_reader": 1,
         "cache_dir": '/raid/1moritz/models/languagebind/downloaded_weights',
@@ -30,9 +31,10 @@ def get_args_msrvtt():
 
 def run_eval(model:LanguageBind, tokenizer:LanguageBindImageTokenizer, dataloader:DataLoader, modality_transform: dict, device: torch.device):
     batch_sentences_embeddings, batch_videos_embeddings, batch_audios_embeddings, batch_asr_embeddings = [], [], [], []
+    batch_summaries_embeddings = []
     # Calculate embeddings
     for bid, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
-        sentences, video_paths, audio_paths, asr_texts = batch
+        sentences, video_paths, audio_paths, asr_texts, summaries = batch
 
         if not isinstance(sentences, list):
             sentences = list(sentences)
@@ -42,6 +44,8 @@ def run_eval(model:LanguageBind, tokenizer:LanguageBindImageTokenizer, dataloade
             audio_paths = list(audio_paths)
         if not isinstance(asr_texts, list):
             asr_texts = list(asr_texts)
+        if not isinstance(summaries, list):
+            summaries = list(summaries)
 
         # print(sentences)
         # print(type(sentences))
@@ -58,15 +62,19 @@ def run_eval(model:LanguageBind, tokenizer:LanguageBindImageTokenizer, dataloade
                                             truncation=True, return_tensors='pt'), device)
         asr_inputs = {'language': to_device(tokenizer(asr_texts, max_length=77, padding='max_length',
                                             truncation=True, return_tensors='pt'), device)}
+        summary_inputs = {'language': to_device(tokenizer(summaries, max_length=77, padding='max_length',
+                                            truncation=True, return_tensors='pt'), device)}
         
         with torch.no_grad():
             embeddings = model(inputs)
             asr_embeddings = model(asr_inputs)
+            summary_embeddings = model(summary_inputs)
 
         batch_sentences_embeddings.append(embeddings['language'])
         batch_audios_embeddings.append(embeddings['audio'])
         batch_videos_embeddings.append(embeddings['video'])
         batch_asr_embeddings.append(asr_embeddings['language'])
+        batch_summaries_embeddings.append(summary_embeddings['language'])
 
     # Create similarity matrix
     sim_matrix = create_sim_matrix(batch_sentences_embeddings, batch_videos_embeddings)
@@ -131,6 +139,30 @@ def run_eval(model:LanguageBind, tokenizer:LanguageBindImageTokenizer, dataloade
     print(f"MSR-VTT Video-to-ASR:")
     print('\t>>>  V2Asr$R@1: {:.1f} - V2Asr$R@5: {:.1f} - V2Asr$R@10: {:.1f} - V2Asr$Median R: {:.1f} - V2Asr$Mean R: {:.1f}'.
                 format(va_metrics['R1'], va_metrics['R5'], va_metrics['R10'], va_metrics['MR'], va_metrics['MeanR']))
+    
+    # Log metrics Text-to-Summary
+    sim_matrix = create_sim_matrix(batch_sentences_embeddings, batch_summaries_embeddings)
+    print(f"MSR-VTT sim matrix size: {sim_matrix.shape[0]}, {sim_matrix.shape[1]}")
+    ts_metrics = compute_metrics(sim_matrix)
+    st_metrics = compute_metrics(sim_matrix.T)
+    print(f"MSR-VTT Text-to-Summary_ASR:")
+    print('\t>>>  R@1: {:.1f} - R@5: {:.1f} - R@10: {:.1f} - Median R: {:.1f} - Mean R: {:.1f}'.
+                format(ts_metrics['R1'], ts_metrics['R5'], ts_metrics['R10'], ts_metrics['MR'], ts_metrics['MeanR']))
+    print(f"MSR-VTT Summary_ASR-to-Text:")
+    print('\t>>>  Sum2T$R@1: {:.1f} - Sum2T$R@5: {:.1f} - Sum2T$R@10: {:.1f} - Sum2T$Median R: {:.1f} - Sum2T$Mean R: {:.1f}'.
+                format(st_metrics['R1'], st_metrics['R5'], st_metrics['R10'], st_metrics['MR'], st_metrics['MeanR']))
+    
+    # Log metrics Summary-to-Video
+    sim_matrix = create_sim_matrix(batch_summaries_embeddings, batch_videos_embeddings)
+    print(f"MSR-VTT sim matrix size: {sim_matrix.shape[0]}, {sim_matrix.shape[1]}")
+    sv_metrics = compute_metrics(sim_matrix)
+    vs_metrics = compute_metrics(sim_matrix.T)
+    print(f"MSR-VTT Summary_ASR-to-Video:")
+    print('\t>>>  R@1: {:.1f} - R@5: {:.1f} - R@10: {:.1f} - Median R: {:.1f} - Mean R: {:.1f}'.
+                format(sv_metrics['R1'], sv_metrics['R5'], sv_metrics['R10'], sv_metrics['MR'], sv_metrics['MeanR']))
+    print(f"MSR-VTT Video-to-Summary_ASR:")
+    print('\t>>>  V2Sum$R@1: {:.1f} - V2Sum$R@5: {:.1f} - V2Sum$R@10: {:.1f} - V2Sum$Median R: {:.1f} - V2Sum$Mean R: {:.1f}'.
+                format(vs_metrics['R1'], vs_metrics['R5'], vs_metrics['R10'], vs_metrics['MR'], vs_metrics['MeanR']))
 
 def create_sim_matrix(batch_sentences_embeddings, batch_videos_embeddings):
     """Calculate embedding vector product for similarity and download result to CPU
@@ -174,6 +206,7 @@ def main():
             video_folder=args.video_folder, 
             audio_folder=args.audio_folder,
             asr_folder=args.asr_folder,
+            summary_folder=args.summary_folder,
             lang_detect_json=args.language_detect_path,
             csv_path=args.csv_path),
         batch_size=args.batch_size_val,

@@ -7,10 +7,11 @@ from torch.utils.data import Dataset
 
 class MSRVTT_Dataset(Dataset):
     """MSRVTT dataset loader"""
-    def __init__(self, video_folder, audio_folder, asr_folder, lang_detect_json, csv_path):
+    def __init__(self, video_folder, audio_folder, asr_folder, summary_folder, lang_detect_json, csv_path):
         self.video_folder = video_folder
         self.audio_folder = audio_folder
         self.asr_folder = asr_folder
+        self.summary_folder = summary_folder
         self.lang_detect_json = lang_detect_json
 
         # filter data for english asr
@@ -33,8 +34,13 @@ class MSRVTT_Dataset(Dataset):
         asr_path = os.path.join(self.asr_folder, f"{video_filename}.txt")
         with open(asr_path, "r") as asr_file:
             asr_text = asr_file.read()
+        summary_path = os.path.join(self.summary_folder, f"{video_filename}.json")
+        assert osp.exists(summary_path)
+        with open(summary_path) as f:
+            summary_report = json.load(f)
+        summary = summary_report["Summary"]
 
-        return sentence, video_path, audio_path, asr_text
+        return sentence, video_path, audio_path, asr_text, summary
     
     def get_english_detected_list(self):
         """
@@ -60,6 +66,7 @@ def get_args_msrvtt():
         "video_folder": '/raid/1moritz/datasets/MSRVTT/original_data/MSRVTT/videos/all',
         "audio_folder": '/raid/1moritz/datasets/MSRVTT/original_data/MSRVTT/clip_audios',
         "asr_folder": '/raid/1moritz/datasets/MSRVTT/original_data/MSRVTT/clip_asr',
+        "summary_folder": '/raid/1moritz/datasets/MSRVTT/original_data/MSRVTT/clip_summary_asr',
         "batch_size_val": 8,
         "num_thread_reader": 1,
         "cache_dir": '/raid/1moritz/models/languagebind/downloaded_weights',
@@ -74,6 +81,7 @@ if __name__ == "__main__":
         video_folder=args.video_folder,
         audio_folder=args.audio_folder,
         asr_folder=args.asr_folder,
+        summary_folder=args.summary_folder,
         lang_detect_json=args.language_detect_path,
         csv_path=args.csv_path,
     )
