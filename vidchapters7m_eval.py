@@ -20,6 +20,7 @@ def get_args_vidchap():
         "video_folder": '/raid/1moritz/datasets/VidChapters-7M/chapter_clips',
         "audio_folder": '/raid/1moritz/datasets/VidChapters-7M/chapter_audios',
         "asr_folder": '/raid/1moritz/datasets/VidChapters-7M/chapter_asr',
+        "summary_folder": '/raid/1moritz/datasets/VidChapters-7M/chapter_summary_asr',
         "batch_size_val": 8,
         "num_thread_reader": 1,
         "cache_dir": '/raid/1moritz/models/languagebind/downloaded_weights',
@@ -29,9 +30,10 @@ def get_args_vidchap():
 
 def run_eval(model:LanguageBind, tokenizer:LanguageBindImageTokenizer, dataloader:DataLoader, modality_transform: dict, device: torch.device):
     batch_sentences_embeddings, batch_videos_embeddings, batch_audios_embeddings, batch_asr_embeddings = [], [], [], []
+    batch_summaries_embeddings = []
     # Calculate embeddings
     for bid, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
-        sentences, video_paths, audio_paths, asr_texts = batch
+        sentences, video_paths, audio_paths, asr_texts, summaries = batch
 
         if not isinstance(sentences, list):
             sentences = list(sentences)
@@ -41,6 +43,8 @@ def run_eval(model:LanguageBind, tokenizer:LanguageBindImageTokenizer, dataloade
             audio_paths = list(audio_paths)
         if not isinstance(asr_texts, list):
             asr_texts = list(asr_texts)
+        if not isinstance(summaries, list):
+            summaries = list(summaries)
 
         # print(sentences)
         # print(type(sentences))
@@ -57,15 +61,19 @@ def run_eval(model:LanguageBind, tokenizer:LanguageBindImageTokenizer, dataloade
                                             truncation=True, return_tensors='pt'), device)
         asr_inputs = {'language': to_device(tokenizer(asr_texts, max_length=77, padding='max_length',
                                             truncation=True, return_tensors='pt'), device)}
+        summary_inputs = {'language': to_device(tokenizer(summaries, max_length=77, padding='max_length',
+                                            truncation=True, return_tensors='pt'), device)}
         
         with torch.no_grad():
             embeddings = model(inputs)
             asr_embeddings = model(asr_inputs)
+            summary_embeddings = model(summary_inputs)
 
         batch_sentences_embeddings.append(embeddings['language'])
         batch_audios_embeddings.append(embeddings['audio'])
         batch_videos_embeddings.append(embeddings['video'])
         batch_asr_embeddings.append(asr_embeddings['language'])
+        batch_summaries_embeddings.append(summary_embeddings['language'])
 
     # Create similarity matrix
     sim_matrix = create_sim_matrix(batch_sentences_embeddings, batch_videos_embeddings)
@@ -130,6 +138,30 @@ def run_eval(model:LanguageBind, tokenizer:LanguageBindImageTokenizer, dataloade
     print(f"VidChapters Video-to-ASR:")
     print('\t>>>  V2Asr$R@1: {:.1f} - V2Asr$R@5: {:.1f} - V2Asr$R@10: {:.1f} - V2Asr$Median R: {:.1f} - V2Asr$Mean R: {:.1f}'.
                 format(va_metrics['R1'], va_metrics['R5'], va_metrics['R10'], va_metrics['MR'], va_metrics['MeanR']))
+    
+    # Log metrics Text-to-Summary
+    sim_matrix = create_sim_matrix(batch_sentences_embeddings, batch_summaries_embeddings)
+    print(f"VidChapters sim matrix size: {sim_matrix.shape[0]}, {sim_matrix.shape[1]}")
+    ts_metrics = compute_metrics(sim_matrix)
+    st_metrics = compute_metrics(sim_matrix.T)
+    print(f"VidChapters Text-to-Summary_ASR:")
+    print('\t>>>  R@1: {:.1f} - R@5: {:.1f} - R@10: {:.1f} - Median R: {:.1f} - Mean R: {:.1f}'.
+                format(ts_metrics['R1'], ts_metrics['R5'], ts_metrics['R10'], ts_metrics['MR'], ts_metrics['MeanR']))
+    print(f"VidChapters Summary_ASR-to-Text:")
+    print('\t>>>  Sum2T$R@1: {:.1f} - Sum2T$R@5: {:.1f} - Sum2T$R@10: {:.1f} - Sum2T$Median R: {:.1f} - Sum2T$Mean R: {:.1f}'.
+                format(st_metrics['R1'], st_metrics['R5'], st_metrics['R10'], st_metrics['MR'], st_metrics['MeanR']))
+    
+    # Log metrics Summary-to-Video
+    sim_matrix = create_sim_matrix(batch_summaries_embeddings, batch_videos_embeddings)
+    print(f"VidChapters sim matrix size: {sim_matrix.shape[0]}, {sim_matrix.shape[1]}")
+    sv_metrics = compute_metrics(sim_matrix)
+    vs_metrics = compute_metrics(sim_matrix.T)
+    print(f"VidChapters Summary_ASR-to-Video:")
+    print('\t>>>  R@1: {:.1f} - R@5: {:.1f} - R@10: {:.1f} - Median R: {:.1f} - Mean R: {:.1f}'.
+                format(sv_metrics['R1'], sv_metrics['R5'], sv_metrics['R10'], sv_metrics['MR'], sv_metrics['MeanR']))
+    print(f"VidChapters Video-to-Summary_ASR:")
+    print('\t>>>  V2Sum$R@1: {:.1f} - V2Sum$R@5: {:.1f} - V2Sum$R@10: {:.1f} - V2Sum$Median R: {:.1f} - V2Sum$Mean R: {:.1f}'.
+                format(vs_metrics['R1'], vs_metrics['R5'], vs_metrics['R10'], vs_metrics['MR'], vs_metrics['MeanR']))
 
 def create_sim_matrix(batch_sentences_embeddings, batch_videos_embeddings):
     """Calculate embedding vector product for similarity and download result to CPU
@@ -173,7 +205,8 @@ def main():
             json_path=args.json_path, 
             video_folder=args.video_folder, 
             audio_folder=args.audio_folder,
-            asr_folder=args.asr_folder),
+            asr_folder=args.asr_folder,
+            summary_folder=args.summary_folder),
         batch_size=args.batch_size_val,
         num_workers=args.num_thread_reader,
         shuffle=False,
@@ -229,4 +262,43 @@ VidChapters ASR-to-Video:
 	>>>  R@1: 30.6 - R@5: 54.6 - R@10: 64.7 - Median R: 4.0 - Mean R: 68.2
 VidChapters Video-to-ASR:
 	>>>  V2Asr$R@1: 26.4 - V2Asr$R@5: 48.5 - V2Asr$R@10: 56.6 - V2Asr$Median R: 6.0 - V2Asr$Mean R: 53.0
+"""
+
+"""
+VidChapters sim matrix size: 895, 895
+	 Length-T: 895, Length-V:895
+VidChapters Text-to-Video:
+	>>>  R@1: 31.5 - R@5: 47.7 - R@10: 53.4 - Median R: 7.0 - Mean R: 110.5
+VidChapters Video-to-Text:
+	>>>  V2T$R@1: 11.1 - V2T$R@5: 19.8 - V2T$R@10: 22.5 - V2T$Median R: 185.0 - V2T$Mean R: 210.0
+VidChapters sim matrix size: 895, 895
+VidChapters Text-to-Audio:
+	>>>  R@1: 0.4 - R@5: 1.3 - R@10: 2.9 - Median R: 333.0 - Mean R: 369.2
+VidChapters Audio-to-Text:
+	>>>  A2T$R@1: 0.0 - A2T$R@5: 0.5 - A2T$R@10: 0.8 - A2T$Median R: 221.0 - A2T$Mean R: 285.7
+VidChapters sim matrix size: 895, 895
+VidChapters Audio-to-Video:
+	>>>  R@1: 0.8 - R@5: 3.1 - R@10: 6.3 - Median R: 221.0 - Mean R: 299.6
+VidChapters Video-to-Audio:
+	>>>  V2A$R@1: 2.0 - V2A$R@5: 6.8 - V2A$R@10: 10.9 - V2A$Median R: 145.0 - V2A$Mean R: 210.2
+VidChapters sim matrix size: 895, 895
+VidChapters Text-to-ASR:
+	>>>  R@1: 27.8 - R@5: 37.8 - R@10: 42.4 - Median R: 31.0 - Mean R: 138.6
+VidChapters ASR-to-Text:
+	>>>  Asr2T$R@1: 15.9 - Asr2T$R@5: 21.7 - Asr2T$R@10: 24.2 - Asr2T$Median R: 114.0 - Asr2T$Mean R: 164.5
+VidChapters sim matrix size: 895, 895
+VidChapters ASR-to-Video:
+	>>>  R@1: 30.7 - R@5: 54.2 - R@10: 64.1 - Median R: 4.0 - Mean R: 68.6
+VidChapters Video-to-ASR:
+	>>>  V2Asr$R@1: 26.2 - V2Asr$R@5: 48.4 - V2Asr$R@10: 56.5 - V2Asr$Median R: 6.0 - V2Asr$Mean R: 53.6
+VidChapters sim matrix size: 895, 895
+VidChapters Text-to-Summary_ASR:
+	>>>  R@1: 24.1 - R@5: 35.1 - R@10: 39.4 - Median R: 48.0 - Mean R: 162.8
+VidChapters Summary_ASR-to-Text:
+	>>>  Sum2T$R@1: 13.8 - Sum2T$R@5: 19.5 - Sum2T$R@10: 22.1 - Sum2T$Median R: 153.0 - Sum2T$Mean R: 203.2
+VidChapters sim matrix size: 895, 895
+VidChapters Summary_ASR-to-Video:
+	>>>  R@1: 29.8 - R@5: 53.2 - R@10: 63.8 - Median R: 5.0 - Mean R: 71.3
+VidChapters Video-to-Summary_ASR:
+	>>>  V2Sum$R@1: 25.5 - V2Sum$R@5: 46.6 - V2Sum$R@10: 55.8 - V2Sum$Median R: 7.0 - V2Sum$Mean R: 55.8
 """

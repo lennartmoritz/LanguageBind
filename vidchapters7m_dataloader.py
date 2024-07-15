@@ -4,10 +4,11 @@ from torch.utils.data import Dataset
 
 class VidChapters7M_Dataset(Dataset):
     """VidChapters-7M dataset loader"""
-    def __init__(self, json_path, video_folder, audio_folder, asr_folder):
+    def __init__(self, json_path, video_folder, audio_folder, asr_folder, summary_folder):
         self.video_folder = video_folder
         self.audio_folder = audio_folder
         self.asr_folder = asr_folder
+        self.summary_folder = summary_folder
         self.data = [f for f in os.listdir(self.video_folder) if f.lower().endswith('.mp4')]
         
         with open(json_path, 'r') as file:
@@ -32,5 +33,10 @@ class VidChapters7M_Dataset(Dataset):
         asr_path = os.path.join(self.asr_folder, f"{video_filename}.txt")
         with open(asr_path, "r") as asr_file:
             asr_text = asr_file.read()
+        summary_path = os.path.join(self.summary_folder, f"{video_filename}.json")
+        assert os.path.exists(summary_path)
+        with open(summary_path) as f:
+            summary_report = json.load(f)
+        summary = summary_report["Summary"]
 
-        return sentence, video_path, audio_path, asr_text
+        return sentence, video_path, audio_path, asr_text, summary

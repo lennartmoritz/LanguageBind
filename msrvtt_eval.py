@@ -247,3 +247,41 @@ MSR-VTT ASR-to-Video:
 MSR-VTT Video-to-ASR:
 	>>>  V2Asr$R@1: 31.0 - V2Asr$R@5: 47.3 - V2Asr$R@10: 53.7 - V2Asr$Median R: 7.5 - V2Asr$Mean R: 57.8
 """
+"""
+MSR-VTT sim matrix size: 619, 619
+	 Length-T: 619, Length-V:619
+MSR-VTT Text-to-Video:
+	>>>  R@1: 47.7 - R@5: 72.5 - R@10: 81.6 - Median R: 2.0 - Mean R: 13.4
+MSR-VTT Video-to-Text:
+	>>>  V2T$R@1: 45.6 - V2T$R@5: 70.8 - V2T$R@10: 80.1 - V2T$Median R: 2.0 - V2T$Mean R: 14.5
+MSR-VTT sim matrix size: 619, 619
+MSR-VTT Text-to-Audio:
+	>>>  R@1: 2.6 - R@5: 9.2 - R@10: 12.4 - Median R: 106.0 - Mean R: 158.2
+MSR-VTT Audio-to-Text:
+	>>>  A2T$R@1: 1.4 - A2T$R@5: 4.9 - A2T$R@10: 7.8 - A2T$Median R: 129.0 - A2T$Mean R: 180.8
+MSR-VTT sim matrix size: 619, 619
+MSR-VTT Audio-to-Video:
+	>>>  R@1: 2.7 - R@5: 10.5 - R@10: 15.2 - Median R: 122.0 - Mean R: 174.8
+MSR-VTT Video-to-Audio:
+	>>>  V2A$R@1: 4.7 - V2A$R@5: 11.5 - V2A$R@10: 17.1 - V2A$Median R: 77.0 - V2A$Mean R: 138.1
+MSR-VTT sim matrix size: 619, 619
+MSR-VTT Text-to-ASR:
+	>>>  R@1: 17.9 - R@5: 28.5 - R@10: 33.3 - Median R: 45.0 - Mean R: 130.0
+MSR-VTT ASR-to-Text:
+	>>>  Asr2T$R@1: 15.0 - Asr2T$R@5: 23.8 - Asr2T$R@10: 27.4 - Asr2T$Median R: 108.0 - Asr2T$Mean R: 179.7
+MSR-VTT sim matrix size: 619, 619
+MSR-VTT ASR-to-Video:
+	>>>  R@1: 35.9 - R@5: 49.1 - R@10: 54.8 - Median R: 6.0 - Mean R: 68.9
+MSR-VTT Video-to-ASR:
+	>>>  V2Asr$R@1: 30.3 - V2Asr$R@5: 47.3 - V2Asr$R@10: 53.1 - V2Asr$Median R: 8.0 - V2Asr$Mean R: 57.3
+MSR-VTT sim matrix size: 619, 619
+MSR-VTT Text-to-Summary_ASR:
+	>>>  R@1: 16.6 - R@5: 26.6 - R@10: 31.6 - Median R: 53.0 - Mean R: 134.2
+MSR-VTT Summary_ASR-to-Text:
+	>>>  Sum2T$R@1: 14.4 - Sum2T$R@5: 22.8 - Sum2T$R@10: 27.8 - Sum2T$Median R: 110.0 - Sum2T$Mean R: 182.3
+MSR-VTT sim matrix size: 619, 619
+MSR-VTT Summary_ASR-to-Video:
+	>>>  R@1: 33.9 - R@5: 48.9 - R@10: 54.4 - Median R: 6.0 - Mean R: 70.9
+MSR-VTT Video-to-Summary_ASR:
+	>>>  V2Sum$R@1: 29.8 - V2Sum$R@5: 46.2 - V2Sum$R@10: 53.3 - V2Sum$Median R: 8.0 - V2Sum$Mean R: 59.5
+"""
