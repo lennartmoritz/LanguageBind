@@ -8,7 +8,8 @@ import torch
 import os.path as osp
 from tqdm.auto import tqdm as tqdm
 from languagebind import LanguageBind, to_device, transform_dict, LanguageBindImageTokenizer
-from vl_ret.metrics import compute_metrics
+# from vl_ret.metrics import compute_metrics
+from master_metrics import compute_metrics
 import sys
 from msrvtt_dataloader import MSRVTT_Dataset
 
@@ -81,88 +82,88 @@ def run_eval(model:LanguageBind, tokenizer:LanguageBindImageTokenizer, dataloade
 
     # Log metrics Text-to-Video
     print(f"MSR-VTT sim matrix size: {sim_matrix.shape[0]}, {sim_matrix.shape[1]}")
-    tv_metrics = compute_metrics(sim_matrix)
-    vt_metrics = compute_metrics(sim_matrix.T)
+    tv_metrics = compute_metrics(sim_matrix, np.arange(sim_matrix.shape[0]).reshape(-1, 1))
+    vt_metrics = compute_metrics(sim_matrix.T, np.arange(sim_matrix.T.shape[0]).reshape(-1, 1))
     print('\t Length-T: {}, Length-V:{}'.format(len(sim_matrix), len(sim_matrix[0])))
 
     print(f"MSR-VTT Text-to-Video:")
-    print('\t>>>  R@1: {:.1f} - R@5: {:.1f} - R@10: {:.1f} - Median R: {:.1f} - Mean R: {:.1f}'.
-                format(tv_metrics['R1'], tv_metrics['R5'], tv_metrics['R10'], tv_metrics['MR'], tv_metrics['MeanR']))
+    print('\t>>>  R@1: {:.1f} - R@5: {:.1f} - R@10: {:.1f} - Median R: {:.1f} - Mean R: {:.1f} - mAP: {:.1f}'.
+                format(tv_metrics['R1'], tv_metrics['R5'], tv_metrics['R10'], tv_metrics['MR'], tv_metrics['MeanR'], tv_metrics['mAP']))
     print(f"MSR-VTT Video-to-Text:")
-    print('\t>>>  V2T$R@1: {:.1f} - V2T$R@5: {:.1f} - V2T$R@10: {:.1f} - V2T$Median R: {:.1f} - V2T$Mean R: {:.1f}'.
-                format(vt_metrics['R1'], vt_metrics['R5'], vt_metrics['R10'], vt_metrics['MR'], vt_metrics['MeanR']))
+    print('\t>>>  V2T$R@1: {:.1f} - V2T$R@5: {:.1f} - V2T$R@10: {:.1f} - V2T$Median R: {:.1f} - V2T$Mean R: {:.1f} - V2T$mAP: {:.1f}'.
+                format(vt_metrics['R1'], vt_metrics['R5'], vt_metrics['R10'], vt_metrics['MR'], vt_metrics['MeanR'], vt_metrics['mAP']))
     
     # Log metrics Text-to-Audio
     sim_matrix = create_sim_matrix(batch_sentences_embeddings, batch_audios_embeddings)
     print(f"MSR-VTT sim matrix size: {sim_matrix.shape[0]}, {sim_matrix.shape[1]}")
-    ta_metrics = compute_metrics(sim_matrix)
-    at_metrics = compute_metrics(sim_matrix.T)
+    ta_metrics = compute_metrics(sim_matrix, np.arange(sim_matrix.shape[0]).reshape(-1, 1))
+    at_metrics = compute_metrics(sim_matrix.T, np.arange(sim_matrix.T.shape[0]).reshape(-1, 1))
     print(f"MSR-VTT Text-to-Audio:")
-    print('\t>>>  R@1: {:.1f} - R@5: {:.1f} - R@10: {:.1f} - Median R: {:.1f} - Mean R: {:.1f}'.
-                format(ta_metrics['R1'], ta_metrics['R5'], ta_metrics['R10'], ta_metrics['MR'], ta_metrics['MeanR']))
+    print('\t>>>  R@1: {:.1f} - R@5: {:.1f} - R@10: {:.1f} - Median R: {:.1f} - Mean R: {:.1f} - mAP: {:.1f}'.
+                format(ta_metrics['R1'], ta_metrics['R5'], ta_metrics['R10'], ta_metrics['MR'], ta_metrics['MeanR'], ta_metrics['mAP']))
     print(f"MSR-VTT Audio-to-Text:")
-    print('\t>>>  A2T$R@1: {:.1f} - A2T$R@5: {:.1f} - A2T$R@10: {:.1f} - A2T$Median R: {:.1f} - A2T$Mean R: {:.1f}'.
-                format(at_metrics['R1'], at_metrics['R5'], at_metrics['R10'], at_metrics['MR'], at_metrics['MeanR']))
+    print('\t>>>  A2T$R@1: {:.1f} - A2T$R@5: {:.1f} - A2T$R@10: {:.1f} - A2T$Median R: {:.1f} - A2T$Mean R: {:.1f} - A2T$mAP: {:.1f}'.
+                format(at_metrics['R1'], at_metrics['R5'], at_metrics['R10'], at_metrics['MR'], at_metrics['MeanR'], at_metrics['mAP']))
     
     # Log metrics Audio-to-Video
     sim_matrix = create_sim_matrix(batch_audios_embeddings, batch_videos_embeddings)
     print(f"MSR-VTT sim matrix size: {sim_matrix.shape[0]}, {sim_matrix.shape[1]}")
-    av_metrics = compute_metrics(sim_matrix)
-    va_metrics = compute_metrics(sim_matrix.T)
+    av_metrics = compute_metrics(sim_matrix, np.arange(sim_matrix.shape[0]).reshape(-1, 1))
+    va_metrics = compute_metrics(sim_matrix.T, np.arange(sim_matrix.T.shape[0]).reshape(-1, 1))
     print(f"MSR-VTT Audio-to-Video:")
-    print('\t>>>  R@1: {:.1f} - R@5: {:.1f} - R@10: {:.1f} - Median R: {:.1f} - Mean R: {:.1f}'.
-                format(av_metrics['R1'], av_metrics['R5'], av_metrics['R10'], av_metrics['MR'], av_metrics['MeanR']))
+    print('\t>>>  R@1: {:.1f} - R@5: {:.1f} - R@10: {:.1f} - Median R: {:.1f} - Mean R: {:.1f} - mAP: {:.1f}'.
+                format(av_metrics['R1'], av_metrics['R5'], av_metrics['R10'], av_metrics['MR'], av_metrics['MeanR'], av_metrics['mAP']))
     print(f"MSR-VTT Video-to-Audio:")
-    print('\t>>>  V2A$R@1: {:.1f} - V2A$R@5: {:.1f} - V2A$R@10: {:.1f} - V2A$Median R: {:.1f} - V2A$Mean R: {:.1f}'.
-                format(va_metrics['R1'], va_metrics['R5'], va_metrics['R10'], va_metrics['MR'], va_metrics['MeanR']))
+    print('\t>>>  V2A$R@1: {:.1f} - V2A$R@5: {:.1f} - V2A$R@10: {:.1f} - V2A$Median R: {:.1f} - V2A$Mean R: {:.1f} - V2A$mAP: {:.1f}'.
+                format(va_metrics['R1'], va_metrics['R5'], va_metrics['R10'], va_metrics['MR'], va_metrics['MeanR'], va_metrics['mAP']))
     
     # Log metrics Text-to-ASR
     sim_matrix = create_sim_matrix(batch_sentences_embeddings, batch_asr_embeddings)
     print(f"MSR-VTT sim matrix size: {sim_matrix.shape[0]}, {sim_matrix.shape[1]}")
-    ta_metrics = compute_metrics(sim_matrix)
-    at_metrics = compute_metrics(sim_matrix.T)
+    ta_metrics = compute_metrics(sim_matrix, np.arange(sim_matrix.shape[0]).reshape(-1, 1))
+    at_metrics = compute_metrics(sim_matrix.T, np.arange(sim_matrix.T.shape[0]).reshape(-1, 1))
     print(f"MSR-VTT Text-to-ASR:")
-    print('\t>>>  R@1: {:.1f} - R@5: {:.1f} - R@10: {:.1f} - Median R: {:.1f} - Mean R: {:.1f}'.
-                format(ta_metrics['R1'], ta_metrics['R5'], ta_metrics['R10'], ta_metrics['MR'], ta_metrics['MeanR']))
+    print('\t>>>  R@1: {:.1f} - R@5: {:.1f} - R@10: {:.1f} - Median R: {:.1f} - Mean R: {:.1f} - mAP: {:.1f}'.
+                format(ta_metrics['R1'], ta_metrics['R5'], ta_metrics['R10'], ta_metrics['MR'], ta_metrics['MeanR'], ta_metrics['mAP']))
     print(f"MSR-VTT ASR-to-Text:")
-    print('\t>>>  Asr2T$R@1: {:.1f} - Asr2T$R@5: {:.1f} - Asr2T$R@10: {:.1f} - Asr2T$Median R: {:.1f} - Asr2T$Mean R: {:.1f}'.
-                format(at_metrics['R1'], at_metrics['R5'], at_metrics['R10'], at_metrics['MR'], at_metrics['MeanR']))
+    print('\t>>>  Asr2T$R@1: {:.1f} - Asr2T$R@5: {:.1f} - Asr2T$R@10: {:.1f} - Asr2T$Median R: {:.1f} - Asr2T$Mean R: {:.1f} - Asr2T$mAP: {:.1f}'.
+                format(at_metrics['R1'], at_metrics['R5'], at_metrics['R10'], at_metrics['MR'], at_metrics['MeanR'], at_metrics['mAP']))
     
     # Log metrics ASR-to-Video
     sim_matrix = create_sim_matrix(batch_asr_embeddings, batch_videos_embeddings)
     print(f"MSR-VTT sim matrix size: {sim_matrix.shape[0]}, {sim_matrix.shape[1]}")
-    av_metrics = compute_metrics(sim_matrix)
-    va_metrics = compute_metrics(sim_matrix.T)
+    av_metrics = compute_metrics(sim_matrix, np.arange(sim_matrix.shape[0]).reshape(-1, 1))
+    va_metrics = compute_metrics(sim_matrix.T, np.arange(sim_matrix.T.shape[0]).reshape(-1, 1))
     print(f"MSR-VTT ASR-to-Video:")
-    print('\t>>>  R@1: {:.1f} - R@5: {:.1f} - R@10: {:.1f} - Median R: {:.1f} - Mean R: {:.1f}'.
-                format(av_metrics['R1'], av_metrics['R5'], av_metrics['R10'], av_metrics['MR'], av_metrics['MeanR']))
+    print('\t>>>  R@1: {:.1f} - R@5: {:.1f} - R@10: {:.1f} - Median R: {:.1f} - Mean R: {:.1f} - mAP: {:.1f}'.
+                format(av_metrics['R1'], av_metrics['R5'], av_metrics['R10'], av_metrics['MR'], av_metrics['MeanR'], av_metrics['mAP']))
     print(f"MSR-VTT Video-to-ASR:")
-    print('\t>>>  V2Asr$R@1: {:.1f} - V2Asr$R@5: {:.1f} - V2Asr$R@10: {:.1f} - V2Asr$Median R: {:.1f} - V2Asr$Mean R: {:.1f}'.
-                format(va_metrics['R1'], va_metrics['R5'], va_metrics['R10'], va_metrics['MR'], va_metrics['MeanR']))
+    print('\t>>>  V2Asr$R@1: {:.1f} - V2Asr$R@5: {:.1f} - V2Asr$R@10: {:.1f} - V2Asr$Median R: {:.1f} - V2Asr$Mean R: {:.1f} - V2Asr$mAP: {:.1f}'.
+                format(va_metrics['R1'], va_metrics['R5'], va_metrics['R10'], va_metrics['MR'], va_metrics['MeanR'], va_metrics['mAP']))
     
     # Log metrics Text-to-Summary
     sim_matrix = create_sim_matrix(batch_sentences_embeddings, batch_summaries_embeddings)
     print(f"MSR-VTT sim matrix size: {sim_matrix.shape[0]}, {sim_matrix.shape[1]}")
-    ts_metrics = compute_metrics(sim_matrix)
-    st_metrics = compute_metrics(sim_matrix.T)
+    ts_metrics = compute_metrics(sim_matrix, np.arange(sim_matrix.shape[0]).reshape(-1, 1))
+    st_metrics = compute_metrics(sim_matrix.T, np.arange(sim_matrix.T.shape[0]).reshape(-1, 1))
     print(f"MSR-VTT Text-to-Summary_ASR:")
-    print('\t>>>  R@1: {:.1f} - R@5: {:.1f} - R@10: {:.1f} - Median R: {:.1f} - Mean R: {:.1f}'.
-                format(ts_metrics['R1'], ts_metrics['R5'], ts_metrics['R10'], ts_metrics['MR'], ts_metrics['MeanR']))
+    print('\t>>>  R@1: {:.1f} - R@5: {:.1f} - R@10: {:.1f} - Median R: {:.1f} - Mean R: {:.1f} - mAP: {:.1f}'.
+                format(ts_metrics['R1'], ts_metrics['R5'], ts_metrics['R10'], ts_metrics['MR'], ts_metrics['MeanR'], ts_metrics['mAP']))
     print(f"MSR-VTT Summary_ASR-to-Text:")
-    print('\t>>>  Sum2T$R@1: {:.1f} - Sum2T$R@5: {:.1f} - Sum2T$R@10: {:.1f} - Sum2T$Median R: {:.1f} - Sum2T$Mean R: {:.1f}'.
-                format(st_metrics['R1'], st_metrics['R5'], st_metrics['R10'], st_metrics['MR'], st_metrics['MeanR']))
+    print('\t>>>  Sum2T$R@1: {:.1f} - Sum2T$R@5: {:.1f} - Sum2T$R@10: {:.1f} - Sum2T$Median R: {:.1f} - Sum2T$Mean R: {:.1f} - Sum2T$mAP: {:.1f}'.
+                format(st_metrics['R1'], st_metrics['R5'], st_metrics['R10'], st_metrics['MR'], st_metrics['MeanR'], st_metrics['mAP']))
     
     # Log metrics Summary-to-Video
     sim_matrix = create_sim_matrix(batch_summaries_embeddings, batch_videos_embeddings)
     print(f"MSR-VTT sim matrix size: {sim_matrix.shape[0]}, {sim_matrix.shape[1]}")
-    sv_metrics = compute_metrics(sim_matrix)
-    vs_metrics = compute_metrics(sim_matrix.T)
+    sv_metrics = compute_metrics(sim_matrix, np.arange(sim_matrix.shape[0]).reshape(-1, 1))
+    vs_metrics = compute_metrics(sim_matrix.T, np.arange(sim_matrix.T.shape[0]).reshape(-1, 1))
     print(f"MSR-VTT Summary_ASR-to-Video:")
-    print('\t>>>  R@1: {:.1f} - R@5: {:.1f} - R@10: {:.1f} - Median R: {:.1f} - Mean R: {:.1f}'.
-                format(sv_metrics['R1'], sv_metrics['R5'], sv_metrics['R10'], sv_metrics['MR'], sv_metrics['MeanR']))
+    print('\t>>>  R@1: {:.1f} - R@5: {:.1f} - R@10: {:.1f} - Median R: {:.1f} - Mean R: {:.1f} - mAP: {:.1f}'.
+                format(sv_metrics['R1'], sv_metrics['R5'], sv_metrics['R10'], sv_metrics['MR'], sv_metrics['MeanR'], sv_metrics['mAP']))
     print(f"MSR-VTT Video-to-Summary_ASR:")
-    print('\t>>>  V2Sum$R@1: {:.1f} - V2Sum$R@5: {:.1f} - V2Sum$R@10: {:.1f} - V2Sum$Median R: {:.1f} - V2Sum$Mean R: {:.1f}'.
-                format(vs_metrics['R1'], vs_metrics['R5'], vs_metrics['R10'], vs_metrics['MR'], vs_metrics['MeanR']))
+    print('\t>>>  V2Sum$R@1: {:.1f} - V2Sum$R@5: {:.1f} - V2Sum$R@10: {:.1f} - V2Sum$Median R: {:.1f} - V2Sum$Mean R: {:.1f} - V2Sum$mAP: {:.1f}'.
+                format(vs_metrics['R1'], vs_metrics['R5'], vs_metrics['R10'], vs_metrics['MR'], vs_metrics['MeanR'], vs_metrics['mAP']))
 
 def create_sim_matrix(batch_sentences_embeddings, batch_videos_embeddings):
     """Calculate embedding vector product for similarity and download result to CPU
@@ -284,4 +285,43 @@ MSR-VTT Summary_ASR-to-Video:
 	>>>  R@1: 33.9 - R@5: 48.9 - R@10: 54.4 - Median R: 6.0 - Mean R: 70.9
 MSR-VTT Video-to-Summary_ASR:
 	>>>  V2Sum$R@1: 29.8 - V2Sum$R@5: 46.2 - V2Sum$R@10: 53.3 - V2Sum$Median R: 8.0 - V2Sum$Mean R: 59.5
+"""
+
+"""
+MSR-VTT sim matrix size: 619, 619
+	 Length-T: 619, Length-V:619
+MSR-VTT Text-to-Video:
+	>>>  R@1: 48.0 - R@5: 73.0 - R@10: 81.1 - Median R: 2.0 - Mean R: 13.4 - mAP: 0.6
+MSR-VTT Video-to-Text:
+	>>>  V2T$R@1: 45.7 - V2T$R@5: 72.9 - V2T$R@10: 81.1 - V2T$Median R: 2.0 - V2T$Mean R: 12.9 - V2T$mAP: 0.6
+MSR-VTT sim matrix size: 619, 619
+MSR-VTT Text-to-Audio:
+	>>>  R@1: 2.7 - R@5: 8.2 - R@10: 12.0 - Median R: 98.0 - Mean R: 156.7 - mAP: 0.1
+MSR-VTT Audio-to-Text:
+	>>>  A2T$R@1: 1.8 - A2T$R@5: 5.8 - A2T$R@10: 9.5 - A2T$Median R: 136.0 - A2T$Mean R: 180.8 - A2T$mAP: 0.0
+MSR-VTT sim matrix size: 619, 619
+MSR-VTT Audio-to-Video:
+	>>>  R@1: 2.4 - R@5: 10.3 - R@10: 15.3 - Median R: 114.0 - Mean R: 173.7 - mAP: 0.1
+MSR-VTT Video-to-Audio:
+	>>>  V2A$R@1: 5.0 - V2A$R@5: 12.1 - V2A$R@10: 18.7 - V2A$Median R: 82.0 - V2A$Mean R: 135.1 - V2A$mAP: 0.1
+MSR-VTT sim matrix size: 619, 619
+MSR-VTT Text-to-ASR:
+	>>>  R@1: 18.1 - R@5: 27.9 - R@10: 32.6 - Median R: 50.0 - Mean R: 134.9 - mAP: 0.2
+MSR-VTT ASR-to-Text:
+	>>>  Asr2T$R@1: 15.5 - Asr2T$R@5: 25.2 - Asr2T$R@10: 28.1 - Asr2T$Median R: 111.0 - Asr2T$Mean R: 181.6 - Asr2T$mAP: 0.2
+MSR-VTT sim matrix size: 619, 619
+MSR-VTT ASR-to-Video:
+	>>>  R@1: 34.2 - R@5: 47.5 - R@10: 53.6 - Median R: 7.0 - Mean R: 64.8 - mAP: 0.4
+MSR-VTT Video-to-ASR:
+	>>>  V2Asr$R@1: 30.9 - V2Asr$R@5: 46.8 - V2Asr$R@10: 52.3 - V2Asr$Median R: 8.0 - V2Asr$Mean R: 55.7 - V2Asr$mAP: 0.4
+MSR-VTT sim matrix size: 619, 619
+MSR-VTT Text-to-Summary_ASR:
+	>>>  R@1: 17.4 - R@5: 26.7 - R@10: 32.5 - Median R: 52.0 - Mean R: 138.8 - mAP: 0.2
+MSR-VTT Summary_ASR-to-Text:
+	>>>  Sum2T$R@1: 14.5 - Sum2T$R@5: 24.1 - Sum2T$R@10: 27.3 - Sum2T$Median R: 113.0 - Sum2T$Mean R: 183.3 - Sum2T$mAP: 0.2
+MSR-VTT sim matrix size: 619, 619
+MSR-VTT Summary_ASR-to-Video:
+	>>>  R@1: 32.5 - R@5: 46.5 - R@10: 51.9 - Median R: 8.0 - Mean R: 67.3 - mAP: 0.4
+MSR-VTT Video-to-Summary_ASR:
+	>>>  V2Sum$R@1: 29.1 - V2Sum$R@5: 46.2 - V2Sum$R@10: 51.1 - V2Sum$Median R: 9.0 - V2Sum$Mean R: 59.2 - V2Sum$mAP: 0.4
 """

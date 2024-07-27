@@ -39,7 +39,7 @@ def calculate_top_k_accuracy(cosine_sim_matrix, ground_truth, k):
         if any(target in top_k_indices for target in targets):
             correct_count += 1
     
-    return correct_count / n_queries
+    return 100 * correct_count / n_queries
 
 def calculate_mean_median_rank(cosine_sim_matrix, ground_truth):
     """
@@ -98,6 +98,7 @@ if __name__ == "__main__":
         [0.9, 0.4, 0.3],
         [0.9, 0.4, 0.3]])
     ground_truth = [[1, 2], [2], [0]]
+    ground_truth = np.arange(cosine_sim_matrix.shape[0]).reshape(-1, 1)
     # rankings: 2,3,3,1
     print(cosine_sim_matrix[0,:4])
 
