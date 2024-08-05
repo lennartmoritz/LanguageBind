@@ -70,7 +70,7 @@ class VidChapText_Dataset(Dataset):
 
         sentence_times = self.annotations[video_id]["timestamps"][sentence_index]
 
-        chunk_filenames = [f for f in os.listdir(self.video_folder) if f.lower().startswith(f'{video_id}_')]
+        chunk_filenames = [f for f in os.listdir(self.video_folder) if f.startswith(f'{video_id}_')]
         chunk_timestamps = [filename_to_timestamps(f_name) for f_name in chunk_filenames]
 
         iou_list = iou_1d(chunk_timestamps, sentence_times)
@@ -106,3 +106,10 @@ def iou_1d(gt_chapters, chunk):
             iou = overlap / union
         iou_list.append(iou)
     return iou_list
+
+
+if __name__ == "__main__":
+    from chunk_vidchap_eval import get_args_vidchap
+    args = get_args_vidchap()
+    text_ds = VidChapText_Dataset(json_path=args.json_path, video_folder=args.video_folder)
+    print(text_ds.__getitem__(1))

@@ -1,3 +1,4 @@
 # Files with .pyc extension
 *.pyc
 logs/
+reports/
