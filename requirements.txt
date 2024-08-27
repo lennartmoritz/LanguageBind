@@ -19,3 +19,6 @@ webdataset==0.2.48
 transformers==4.30.2
 urllib3==1.26.15
 SoundFile
+easydict
+# python version was 3.10.14
+# pytorch version was 1.13.1

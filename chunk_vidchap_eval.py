@@ -1,5 +1,5 @@
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '2'
+os.environ['CUDA_VISIBLE_DEVICES'] = '4'
 
 from easydict import EasyDict
 from torch.utils.data import DataLoader
@@ -14,31 +14,34 @@ import json
 from chunk_vidchap_dataloader import VidChapters7M_Dataset, VidChapText_Dataset
 
 
-def get_args_vidchap():
+def get_args_vidchap(fixed_length, chunking_mode):
+    assert isinstance(fixed_length, int)
+    assert chunking_mode in ["fixed", "recursive", "semantic"]
     # build args
     args = {
-        "json_path": '/raid/1moritz/datasets/VidChapters-7M/chapters_dvc_test.json',
-        "video_folder": '/raid/1moritz/datasets/VidChapters-7M/chunking/fixed/50s/clips',
-        "audio_folder": '/raid/1moritz/datasets/VidChapters-7M/chunking/fixed/50s/audios',
-        "asr_folder": '/raid/1moritz/datasets/VidChapters-7M/chunking/fixed/50s/asr',
-        "summary_folder": '/raid/1moritz/datasets/VidChapters-7M/chunking/fixed/50s/summary_asr',
-        "report_folder": './reports/fixed/50s',
+        "json_path": '/ltstorage/home/1moritz/storage/datasets/VidChapters-7M/chapters_dvc_test.json',
+        "video_folder": f'/ltstorage/home/1moritz/storage/datasets/VidChapters-7M/chunking/{chunking_mode}/{fixed_length}s/clips',
+        "audio_folder": f'/ltstorage/home/1moritz/storage/datasets/VidChapters-7M/chunking/{chunking_mode}/{fixed_length}s/audios',
+        "asr_folder": f'/ltstorage/home/1moritz/storage/datasets/VidChapters-7M/chunking/{chunking_mode}/{fixed_length}s/asr',
+        "summary_folder": f'/ltstorage/home/1moritz/storage/datasets/VidChapters-7M/chunking/{chunking_mode}/{fixed_length}s/summary_asr',
+        "report_folder": f'./reports/{chunking_mode}/{fixed_length}s',
         "batch_size_val": 8,
         "num_thread_reader": 1,
-        "cache_dir": '/raid/1moritz/models/languagebind/downloaded_weights',
+        "cache_dir": '/ltstorage/home/1moritz/storage/models/languagebind/downloaded_weights',
     }
     args = EasyDict(args)
     return args
 
+
 def run_eval(
-        model:LanguageBind, 
-        tokenizer:LanguageBindImageTokenizer, 
-        chunk_dataloader:DataLoader, 
-        sentence_dataloader:DataLoader, 
-        modality_transform:dict, 
-        device:torch.device,
-        report_folder:str="./reports"
-        ):
+        model: LanguageBind,
+        tokenizer: LanguageBindImageTokenizer,
+        chunk_dataloader: DataLoader,
+        sentence_dataloader: DataLoader,
+        modality_transform: dict,
+        device: torch.device,
+        report_folder: str = "./reports"
+):
     batch_videos_embeddings, batch_audios_embeddings, batch_asr_embeddings = [], [], []
     batch_summaries_embeddings, own_chunk_ids, target_sentence_ids = [], [], []
     # Calculate embeddings
@@ -72,8 +75,8 @@ def run_eval(
         asr_inputs = {'language': to_device(tokenizer(asr_texts, max_length=77, padding='max_length',
                                             truncation=True, return_tensors='pt'), device)}
         summary_inputs = {'language': to_device(tokenizer(summaries, max_length=77, padding='max_length',
-                                            truncation=True, return_tensors='pt'), device)}
-        
+                                                truncation=True, return_tensors='pt'), device)}
+
         with torch.no_grad():
             embeddings = model(inputs)
             asr_embeddings = model(asr_inputs)
@@ -90,7 +93,7 @@ def run_eval(
     own_chunk_ids = [tuple((item[0], int(item[1]))) for item in own_chunk_ids]
     target_sentence_ids = np.concatenate(tuple(target_sentence_ids), axis=0).tolist()
     target_sentence_ids = [tuple((item[0], int(item[1]))) for item in target_sentence_ids]
-    
+
     batch_sentences_embeddings, own_sentence_ids, target_chunk_ids = [], [], []
     for bid, batch in tqdm(enumerate(sentence_dataloader), total=len(sentence_dataloader)):
         sentence_ids, chunk_ids, sentences = batch
@@ -111,7 +114,7 @@ def run_eval(
 
         inputs = {}
         inputs['language'] = to_device(tokenizer(sentences, max_length=77, padding='max_length',
-                                            truncation=True, return_tensors='pt'), device)
+                                       truncation=True, return_tensors='pt'), device)
         with torch.no_grad():
             embeddings = model(inputs)
 
@@ -139,7 +142,7 @@ def run_eval(
     print(f"VidChapters Video-to-Text:")
     print('\t>>>  V2T$R@1: {:.1f} - V2T$R@5: {:.1f} - V2T$R@10: {:.1f} - V2T$Median R: {:.1f} - V2T$Mean R: {:.1f} - V2T$mAP: {:.2f}'.
                 format(vt_metrics['R1'], vt_metrics['R5'], vt_metrics['R10'], vt_metrics['MR'], vt_metrics['MeanR'], vt_metrics['mAP']))
-    
+
     # Log metrics Text-to-Audio
     sim_matrix = create_sim_matrix(batch_sentences_embeddings, batch_audios_embeddings)
     print(f"VidChapters sim matrix size: {sim_matrix.shape[0]}, {sim_matrix.shape[1]}")
@@ -151,7 +154,7 @@ def run_eval(
     print(f"VidChapters Audio-to-Text:")
     print('\t>>>  A2T$R@1: {:.1f} - A2T$R@5: {:.1f} - A2T$R@10: {:.1f} - A2T$Median R: {:.1f} - A2T$Mean R: {:.1f} - A2T$mAP: {:.2f}'.
                 format(at_metrics['R1'], at_metrics['R5'], at_metrics['R10'], at_metrics['MR'], at_metrics['MeanR'], at_metrics['mAP']))
-    
+
     # Log metrics Audio-to-Video
     sim_matrix = create_sim_matrix(batch_audios_embeddings, batch_videos_embeddings)
     print(f"VidChapters sim matrix size: {sim_matrix.shape[0]}, {sim_matrix.shape[1]}")
@@ -163,7 +166,7 @@ def run_eval(
     print(f"VidChapters Video-to-Audio:")
     print('\t>>>  V2A$R@1: {:.1f} - V2A$R@5: {:.1f} - V2A$R@10: {:.1f} - V2A$Median R: {:.1f} - V2A$Mean R: {:.1f} - V2A$mAP: {:.2f}'.
                 format(va_metrics['R1'], va_metrics['R5'], va_metrics['R10'], va_metrics['MR'], va_metrics['MeanR'], va_metrics['mAP']))
-    
+
     # Log metrics Text-to-ASR
     sim_matrix = create_sim_matrix(batch_sentences_embeddings, batch_asr_embeddings)
     print(f"VidChapters sim matrix size: {sim_matrix.shape[0]}, {sim_matrix.shape[1]}")
@@ -175,7 +178,7 @@ def run_eval(
     print(f"VidChapters ASR-to-Text:")
     print('\t>>>  Asr2T$R@1: {:.1f} - Asr2T$R@5: {:.1f} - Asr2T$R@10: {:.1f} - Asr2T$Median R: {:.1f} - Asr2T$Mean R: {:.1f} - Asr2T$mAP: {:.2f}'.
                 format(asrt_metrics['R1'], asrt_metrics['R5'], asrt_metrics['R10'], asrt_metrics['MR'], asrt_metrics['MeanR'], asrt_metrics['mAP']))
-    
+
     # Log metrics ASR-to-Video
     sim_matrix = create_sim_matrix(batch_asr_embeddings, batch_videos_embeddings)
     print(f"VidChapters sim matrix size: {sim_matrix.shape[0]}, {sim_matrix.shape[1]}")
@@ -187,7 +190,7 @@ def run_eval(
     print(f"VidChapters Video-to-ASR:")
     print('\t>>>  V2Asr$R@1: {:.1f} - V2Asr$R@5: {:.1f} - V2Asr$R@10: {:.1f} - V2Asr$Median R: {:.1f} - V2Asr$Mean R: {:.1f} - V2Asr$mAP: {:.2f}'.
                 format(vasr_metrics['R1'], vasr_metrics['R5'], vasr_metrics['R10'], vasr_metrics['MR'], vasr_metrics['MeanR'], vasr_metrics['mAP']))
-    
+
     # Log metrics Text-to-Summary
     sim_matrix = create_sim_matrix(batch_sentences_embeddings, batch_summaries_embeddings)
     print(f"VidChapters sim matrix size: {sim_matrix.shape[0]}, {sim_matrix.shape[1]}")
@@ -199,7 +202,7 @@ def run_eval(
     print(f"VidChapters Summary_ASR-to-Text:")
     print('\t>>>  Sum2T$R@1: {:.1f} - Sum2T$R@5: {:.1f} - Sum2T$R@10: {:.1f} - Sum2T$Median R: {:.1f} - Sum2T$Mean R: {:.1f} - Sum2T$mAP: {:.2f}'.
                 format(st_metrics['R1'], st_metrics['R5'], st_metrics['R10'], st_metrics['MR'], st_metrics['MeanR'], st_metrics['mAP']))
-    
+
     # Log metrics Summary-to-Video
     sim_matrix = create_sim_matrix(batch_summaries_embeddings, batch_videos_embeddings)
     print(f"VidChapters sim matrix size: {sim_matrix.shape[0]}, {sim_matrix.shape[1]}")
@@ -235,10 +238,11 @@ def run_eval(
     with open(osp.join(report_folder, f"report_eval_{current_time}.json"), "w") as outfile:
         outfile.write(json_report)
 
+
 def create_sim_matrix(batch_sentences_embeddings, batch_videos_embeddings):
     """Calculate embedding vector product for similarity and download result to CPU
-    
-        Returns: 
+
+        Returns:
             sim_matrix (Text X Video)
     """
     sim_matrix = []
@@ -247,13 +251,14 @@ def create_sim_matrix(batch_sentences_embeddings, batch_videos_embeddings):
         each_row = []
         for idx2 in range(len(batch_videos_embeddings)):
             visual_output = batch_videos_embeddings[idx2]
-            b1b2 =  sequence_output @ visual_output.T
+            b1b2 = sequence_output @ visual_output.T
             b1b2 = b1b2.cpu().detach().numpy()
             each_row.append(b1b2)
         each_row = np.concatenate(tuple(each_row), axis=-1)
         sim_matrix.append(each_row)
     sim_matrix = np.concatenate(tuple(sim_matrix), axis=0)
     return sim_matrix
+
 
 def create_match_matrix(own_query_ids, target_samples_ids, own_samples_ids, target_query_ids):
     """
@@ -277,7 +282,8 @@ def create_match_matrix(own_query_ids, target_samples_ids, own_samples_ids, targ
         true_matches.append(current_matches)
     return true_matches
 
-def main():
+
+def main(args):
     device = 'cuda:0'
     device = torch.device(device)
     clip_type = {
@@ -285,13 +291,14 @@ def main():
         'audio': 'LanguageBind_Audio_FT',  # also LanguageBind_Audio
         'image': 'LanguageBind_Image',
     }
-    args = get_args_vidchap()
 
     model = LanguageBind(clip_type=clip_type, cache_dir=args.cache_dir)
     model = model.to(device)
     model.eval()
-    pretrained_ckpt = f'LanguageBind/LanguageBind_Image'
-    tokenizer = LanguageBindImageTokenizer.from_pretrained(pretrained_ckpt, cache_dir=osp.join(args.cache_dir, 'tokenizer_cache_dir'))
+    pretrained_ckpt = 'LanguageBind/LanguageBind_Image'
+    tokenizer = LanguageBindImageTokenizer.from_pretrained(
+        pretrained_ckpt, cache_dir=osp.join(args.cache_dir, 'tokenizer_cache_dir')
+    )
     modality_transform = {c: transform_dict[c](model.modality_config[c]) for c in clip_type.keys()}
 
     dataloader_vidchap = DataLoader(
@@ -318,4 +325,15 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    lengths = [15, 25, 50, 100, 150]
+    c_mode = "fixed"
+    for length in lengths[3:]:
+        print(f"Start eval: Length = {length}s, Chunking = {c_mode}")
+        arguments = get_args_vidchap(fixed_length=length, chunking_mode=c_mode)
+        main(args=arguments)
+
+    c_mode = "recursive"
+    for length in lengths:
+        print(f"Start eval: Length = {length}s, Chunking = {c_mode}")
+        arguments = get_args_vidchap(fixed_length=length, chunking_mode=c_mode)
+        main(args=arguments)
