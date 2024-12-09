@@ -5,6 +5,7 @@ import pandas as pd
 from easydict import EasyDict
 from torch.utils.data import Dataset
 
+
 class MSRVTT_Dataset(Dataset):
     """MSRVTT dataset loader"""
     def __init__(self, video_folder, audio_folder, asr_folder, summary_folder, lang_detect_json, csv_path):
@@ -20,10 +21,10 @@ class MSRVTT_Dataset(Dataset):
         lang_detect_set = set(self.get_english_detected_list())
         self.data = self.data.loc[self.data["video_id"].isin(lang_detect_set)]
         self.data.reset_index(drop=True, inplace=True)
-    
+
     def __len__(self):
         return len(self.data)
-    
+
     def __getitem__(self, idx):
         video_filename = self.data['video_id'].values[idx].split(".")[0]
         video_extension = self.data['video_id'].values[idx].split(".")[1]
@@ -40,8 +41,14 @@ class MSRVTT_Dataset(Dataset):
             summary_report = json.load(f)
         summary = summary_report["Summary"]
 
-        return sentence, video_path, audio_path, asr_text, summary
-    
+        # store summary stats for transparency
+        summary_stats = {
+            "n_words_asr": summary_report["n_words_asr"],
+            "only_copy": summary_report["only_copy"],
+        }
+
+        return sentence, video_path, audio_path, asr_text, summary, summary_stats
+
     def get_english_detected_list(self):
         """
         Return all video names including file extension that contain english ASR.
@@ -58,21 +65,24 @@ class MSRVTT_Dataset(Dataset):
                 english_list.append(video_filename)
         return english_list
 
+
 def get_args_msrvtt():
     # build args
     args = {
-        "csv_path": '/raid/1moritz/datasets/MSRVTT/MSRVTT_JSFUSION_test.csv',
-        "language_detect_path": '/raid/1moritz/datasets/MSRVTT/original_data/MSRVTT/report_lang_detect.json',
-        "video_folder": '/raid/1moritz/datasets/MSRVTT/original_data/MSRVTT/videos/all',
-        "audio_folder": '/raid/1moritz/datasets/MSRVTT/original_data/MSRVTT/clip_audios',
-        "asr_folder": '/raid/1moritz/datasets/MSRVTT/original_data/MSRVTT/clip_asr',
-        "summary_folder": '/raid/1moritz/datasets/MSRVTT/original_data/MSRVTT/clip_summary_asr',
+        "csv_path": '/ltstorage/home/1moritz/storage/datasets/MSRVTT/MSRVTT_JSFUSION_test.csv',
+        "language_detect_path": '/ltstorage/home/1moritz/storage/datasets/MSRVTT/original_data/MSRVTT/report_lang_detect.json',
+        "video_folder": '/ltstorage/home/1moritz/storage/datasets/MSRVTT/original_data/MSRVTT/videos/all',
+        "audio_folder": '/ltstorage/home/1moritz/storage/datasets/MSRVTT/original_data/MSRVTT/clip_audios',
+        "asr_folder": '/ltstorage/home/1moritz/storage/datasets/MSRVTT/original_data/MSRVTT/clip_asr',
+        "summary_folder": '/ltstorage/home/1moritz/storage/datasets/MSRVTT/original_data/MSRVTT/clip_summary_asr',
+        "report_folder": './reports/native/msrvtt',
         "batch_size_val": 8,
         "num_thread_reader": 1,
-        "cache_dir": '/raid/1moritz/models/languagebind/downloaded_weights',
+        "cache_dir": '/ltstorage/home/1moritz/storage/models/languagebind/downloaded_weights',
     }
     args = EasyDict(args)
     return args
+
 
 if __name__ == "__main__":
     from torch.utils.data import DataLoader
@@ -85,11 +95,10 @@ if __name__ == "__main__":
         lang_detect_json=args.language_detect_path,
         csv_path=args.csv_path,
     )
-    print("Length: ",len(msrvtt_ds))
+    print("Length: ", len(msrvtt_ds))
 
     dataloader = DataLoader(msrvtt_ds, batch_size=1, shuffle=True)
     for i, data in enumerate(dataloader):
         if i >= 3:
             break
         print(f"Sample {i + 1}: {data}")
-

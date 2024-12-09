@@ -3,6 +3,7 @@ import json
 import numpy as np
 from torch.utils.data import Dataset
 
+
 class VidChapters7M_Dataset(Dataset):
     """VidChapters-7M dataset loader"""
     def __init__(self, json_path, video_folder, audio_folder, asr_folder, summary_folder):
@@ -11,13 +12,13 @@ class VidChapters7M_Dataset(Dataset):
         self.asr_folder = asr_folder
         self.summary_folder = summary_folder
         self.data = [f for f in os.listdir(self.video_folder) if f.lower().endswith('.mp4')]
-        
+
         with open(json_path, 'r') as file:
             self.annotations = json.load(file)
-    
+
     def __len__(self):
         return len(self.data)
-    
+
     def __getitem__(self, idx):
         video_filename = self.data[idx].split(".")[0]
         video_extension = self.data[idx].split(".")[1]
@@ -45,7 +46,14 @@ class VidChapters7M_Dataset(Dataset):
             summary_report = json.load(f)
         summary = summary_report["Summary"]
 
-        return chunk_id, sentence_id, video_path, audio_path, asr_text, summary
+        # store summary stats for transparency
+        summary_stats = {
+            "n_words_asr": summary_report["n_words_asr"],
+            "only_copy": summary_report["only_copy"],
+        }
+
+        return chunk_id, sentence_id, video_path, audio_path, asr_text, summary, summary_stats
+
 
 class VidChapText_Dataset(Dataset):
     """Description sentence dataset loader for VidChapters-7M"""
@@ -54,7 +62,7 @@ class VidChapText_Dataset(Dataset):
         with open(json_path, 'r') as file:
             self.annotations = json.load(file)
 
-        video_identifiers = {'_'.join(f.split("_")[:-2]) for f in os.listdir(self.video_folder) if f.lower().endswith('.mp4')}
+        video_identifiers = {'_'.join(f.split("_")[:-2]) for f in os.listdir(self.video_folder) if f.lower().endswith('.mp4')}  # noqa
         self.data = []
         for video_id in video_identifiers:
             for sentence_index in range(len(self.annotations[video_id]["sentences"])):
@@ -80,6 +88,7 @@ class VidChapText_Dataset(Dataset):
 
         return sentence_id, chunk_id, sentence
 
+
 def filename_to_timestamps(filename):
     fname_no_ext = ".".join(filename.split(".")[:-1])
     f_parts = fname_no_ext.split("_")
@@ -88,11 +97,13 @@ def filename_to_timestamps(filename):
     timestamps = [float(ts.replace("-", ".")) for ts in timestamps]
     return timestamps
 
+
 def duration(start_stop):
     assert len(start_stop) == 2, "Function only accepts lists with two entries"
     assert start_stop[0] <= start_stop[1], f"Negative duration is not allowed! Received: {start_stop}"
-    duration =  start_stop[1] - start_stop[0]
+    duration = start_stop[1] - start_stop[0]
     return duration
+
 
 def iou_1d(gt_chapters, chunk):
     iou_list = []
@@ -102,7 +113,7 @@ def iou_1d(gt_chapters, chunk):
         if overlap < 0.001:
             iou = 0
         else:
-            union = duration(chunk) + duration (chapter) - overlap
+            union = duration(chunk) + duration(chapter) - overlap
             iou = overlap / union
         iou_list.append(iou)
     return iou_list
